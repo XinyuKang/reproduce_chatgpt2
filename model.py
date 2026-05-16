@@ -27,12 +27,12 @@ class MultiHeadAttn(nn.module):
         q = x @ self.W_q
         k = x @ self.W_k
         v = x @ self.W_v
-        q = q.view(B, seq, cfg.n_head, -1).transpose(0,2,1,3) # (B , n_head, seq, n_hid)
-        k_t = k.view(B, seq, cfg.n_head, -1).transpose(0,2,3,1) # (B , n_head, n_hid, seq)
-        v = v.view(B, seq, cfg.n_head, -1).transpose(0,2,1,3) # (B , n_head, seq, n_hid)
+        q = q.view(B, seq, cfg.n_head, -1).permute(0,2,1,3) # (B , n_head, seq, n_hid)
+        k_t = k.view(B, seq, cfg.n_head, -1).permute(0,2,3,1) # (B , n_head, n_hid, seq)
+        v = v.view(B, seq, cfg.n_head, -1).permute(0,2,1,3) # (B , n_head, seq, n_hid)
         score = nn.functional.softmax((q @ k_t) * (1 / math.sqrt(d_k)), dim=3) #  # (B , n_head, seq, seq)
         new_v = score @ v # (B , n_head, seq, n_hid)
-        new_v = new_v.transpose(0,2,1,3).view(B, seq, -1)  # (B , seq, n_head * n_hid)
+        new_v = new_v.permute(0,2,1,3).view(B, seq, -1)  # (B , seq, n_head * n_hid)
         return new_v  # (B , seq, n_emb)
 
 class AttentionBlock(nn.Module):
@@ -50,8 +50,7 @@ class AttentionBlock(nn.Module):
         self.drop_out = nn.Dropout(cfg.dropout)
 
     def forward(self, x):
-        x = self.layer_norm_1(x)
-        x = self.drop_out(self.self_attn(x)) + x
+        x = self.drop_out(self.self_attn(self.layer_norm_1(x))) + x
         x = self.layer_norm_2(x)
         x = self.drop_out(self.FFN(x)) + x
         return x
