@@ -36,22 +36,24 @@ class MultiHeadAttn(nn.module):
         return new_v  # (B , seq, n_emb)
 
 class AttentionBlock(nn.Module):
-    def __init__(self, prev_block_output):
+    def __init__(self, cfg):
         super().__init__()
-        B, seq, n_emb = prev_block_output.shape
+        n_emb = cfg.n_emb
         self.self_attn = MultiHeadAttn()
-        self.layer_norm = nn.LayerNorm((B, seq, n_emb))
+        self.layer_norm_1 = nn.LayerNorm(n_emb)
+        self.layer_norm_2 = nn.LayerNorm(n_emb)
         self.FFN = nn.Sequential(
             nn.Linear(n_emb, n_emb),
             nn.GELU(),
             nn.Linear(n_emb, n_emb),
         )
+        self.drop_out = nn.Dropout(cfg.dropout)
 
     def forward(self, x):
-        x = self.layer_norm(x)
-        x = self.self_attn(x) + x
-        x = self.layer_norm(x)
-        x = self.FFN(x) +  x
+        x = self.layer_norm_1(x)
+        x = self.drop_out(self.self_attn(x)) + x
+        x = self.layer_norm_2(x)
+        x = self.drop_out(self.FFN(x)) + x
         return x
 
 
@@ -60,11 +62,9 @@ class GPT2(nn.module):
         super().__init__()
         self.embedding_layer = nn.Embedding(num_embeddings=cfg.vocab_size, embedding_dim=cfg.n_embd) # (50256 * 768)
         self.pe_mat = createPositionalEmbMat(cfg.block_size, cfg.n_embd)
-        self.attn_block = nn.Sequential(
-            MultiHeadAttn(),  # MultiHeadAttn
-            nn.ReLU(),                                 
-            nn.Linear(in_features=20, out_features=1)    # feed-forward layer
-        )
+        attn_blocks_layers = [AttentionBlock() for _ in range(cfg.n_layer)]
+        self.attn_blocks = nn.Sequential(*attn_blocks_layers)
+        self.drop_out = nn.Dropout(p=cfg.dropout)
 
     def forward(self, x): # x: (B * seq)
         B, seq = x.shape
@@ -72,4 +72,7 @@ class GPT2(nn.module):
         embeddings = self.embedding_layer(x) # (B * seq * n_embd)
         # Positional Encoding broadcast
         embeddings_with_pos = embeddings +  self.pe_mat[:seq, :]
-        # Attention
+        # Dropout
+        atten_input = self.drop_out(embeddings_with_pos)
+        # Self Attention
+        atten_output = self.attn_blocks(atten_input)
