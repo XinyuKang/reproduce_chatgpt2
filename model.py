@@ -68,6 +68,8 @@ class GPT2(nn.Module):
         attn_blocks_layers = [AttentionBlock() for _ in range(cfg.n_layer)]
         self.attn_blocks = nn.Sequential(*attn_blocks_layers)
         self.drop_out = nn.Dropout(p=cfg.dropout)
+        self.final_layer_norm = nn.LayerNorm(cfg.n_embd)
+        self.final_linear_layer = nn.Linear(cfg.n_embd, cfg.vocab_size)
 
     def forward(self, x): # x: (B * seq)
         B, seq = x.shape
@@ -79,3 +81,11 @@ class GPT2(nn.Module):
         atten_input = self.drop_out(embeddings_with_pos)
         # Self Attention
         atten_output = self.attn_blocks(atten_input)
+        # final layer
+        out = self.final_layer_norm(atten_output)
+        out = self.final_linear_layer(out)
+        # out = nn.functional.softmax(out, dim=2) # (B * seq * vocab_size)
+        return out
+
+        
+
