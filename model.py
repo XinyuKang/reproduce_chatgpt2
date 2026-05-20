@@ -12,7 +12,7 @@ def createPositionalEmbMat(seq, n_emb):
     pe_mat = torch.stack([sin_mat, cos_mat], dim=2).flatten(1, 3)
     return pe_mat # (seq, n_emb)
 
-class MultiHeadAttn(nn.module):
+class MultiHeadAttn(nn.Module):
     def __init__(self):
         super().__init__()
         self.W_q = torch.nn.Parameter(torch.randn(cfg.n_embd, cfg.n_embd))
@@ -23,6 +23,7 @@ class MultiHeadAttn(nn.module):
         # (B , seq , n_embd) @ (n_embd , n_head * n_hid) = (B , seq , n_head * n_hid)
         # where n_head * n_hid  = n_embd
         B, seq, n_emb = x.shape
+        
         d_k = n_emb // cfg.n_head
         q = x @ self.W_q
         k = x @ self.W_k
@@ -30,8 +31,11 @@ class MultiHeadAttn(nn.module):
         q = q.view(B, seq, cfg.n_head, -1).permute(0,2,1,3) # (B , n_head, seq, n_hid)
         k_t = k.view(B, seq, cfg.n_head, -1).permute(0,2,3,1) # (B , n_head, n_hid, seq)
         v = v.view(B, seq, cfg.n_head, -1).permute(0,2,1,3) # (B , n_head, seq, n_hid)
-        score = nn.functional.softmax((q @ k_t) * (1 / math.sqrt(d_k)), dim=3) #  # (B , n_head, seq, seq)
-        new_v = score @ v # (B , n_head, seq, n_hid)
+        # Add causal mask
+        mask = torch.triu(torch.full((seq, seq), -float('inf')), diagonal=1)
+        q_kt = q @ k_t + mask
+        masked_score = nn.functional.softmax(q_kt * (1 / math.sqrt(d_k)), dim=3)  # (B , n_head, seq, seq)
+        new_v = masked_score @ v # (B , n_head, seq, n_hid)
         new_v = new_v.permute(0,2,1,3).view(B, seq, -1)  # (B , seq, n_head * n_hid)
         return new_v  # (B , seq, n_emb)
 
@@ -56,7 +60,7 @@ class AttentionBlock(nn.Module):
         return x
 
 
-class GPT2(nn.module):
+class GPT2(nn.Module):
     def __init__(self):
         super().__init__()
         self.embedding_layer = nn.Embedding(num_embeddings=cfg.vocab_size, embedding_dim=cfg.n_embd) # (50256 * 768)
