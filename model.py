@@ -3,14 +3,14 @@ import math
 import torch.nn as nn
 from config import GPTConfig as cfg
 
-def createPositionalEmbMat(seq, n_emb):
-    vec = 1 / (10000**(2 * torch.arange(n_emb//2) / n_emb))
-    pos = torch.arange(seq).reshape(seq, -1)
-    mat = pos * vec # (seq, n_emb/2)
-    sin_mat = torch.sin(mat).view(seq, n_emb//2, -1)
-    cos_mat = torch.cos(mat).view(seq, n_emb//2, -1)
-    pe_mat = torch.stack([sin_mat, cos_mat], dim=2).flatten(1, 3)
-    return pe_mat # (seq, n_emb)
+# def createPositionalEmbMat(seq, n_emb):
+#     vec = 1 / (10000**(2 * torch.arange(n_emb//2) / n_emb))
+#     pos = torch.arange(seq).reshape(seq, -1)
+#     mat = pos * vec # (seq, n_emb/2)
+#     sin_mat = torch.sin(mat).view(seq, n_emb//2, -1)
+#     cos_mat = torch.cos(mat).view(seq, n_emb//2, -1)
+#     pe_mat = torch.stack([sin_mat, cos_mat], dim=2).flatten(1, 3)
+#     return pe_mat # (seq, n_emb)
 
 class MultiHeadAttn(nn.Module):
     def __init__(self):
@@ -64,7 +64,7 @@ class GPT2(nn.Module):
     def __init__(self):
         super().__init__()
         self.embedding_layer = nn.Embedding(num_embeddings=cfg.vocab_size, embedding_dim=cfg.n_embd) # (50256 * 768)
-        self.pe_mat = createPositionalEmbMat(cfg.block_size, cfg.n_embd)
+        self.pe_mat = nn.Embedding(num_embeddings=cfg.block_size, embedding_dim=cfg.n_embd)
         attn_blocks_layers = [AttentionBlock() for _ in range(cfg.n_layer)]
         self.attn_blocks = nn.Sequential(*attn_blocks_layers)
         self.drop_out = nn.Dropout(p=cfg.dropout)
