@@ -42,7 +42,7 @@ class MultiHeadAttn(nn.Module):
 class AttentionBlock(nn.Module):
     def __init__(self, cfg):
         super().__init__()
-        n_emb = cfg.n_emb
+        n_emb = cfg.n_embd
         self.self_attn = MultiHeadAttn()
         self.layer_norm_1 = nn.LayerNorm(n_emb)
         self.layer_norm_2 = nn.LayerNorm(n_emb)
@@ -65,7 +65,7 @@ class GPT2(nn.Module):
         super().__init__()
         self.embedding_layer = nn.Embedding(num_embeddings=cfg.vocab_size, embedding_dim=cfg.n_embd) # (50256 * 768)
         self.pe_mat = nn.Embedding(num_embeddings=cfg.block_size, embedding_dim=cfg.n_embd)
-        attn_blocks_layers = [AttentionBlock() for _ in range(cfg.n_layer)]
+        attn_blocks_layers = [AttentionBlock(cfg) for _ in range(cfg.n_layer)]
         self.attn_blocks = nn.Sequential(*attn_blocks_layers)
         self.drop_out = nn.Dropout(p=cfg.dropout)
         self.final_layer_norm = nn.LayerNorm(cfg.n_embd)

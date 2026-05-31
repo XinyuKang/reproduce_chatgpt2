@@ -19,11 +19,13 @@ class GPTConfig:
     max_steps: int = 5000
     eval_interval: int = 500
     eval_iters: int = 100
+    num_epochs: int = 1
 
     # Optimizer
     learning_rate: float = 3e-4
     weight_decay: float = 0.1
     betas: tuple = (0.9, 0.95)
+    eps: float = 1e-8
 
     # System
     device: str = "cuda"
